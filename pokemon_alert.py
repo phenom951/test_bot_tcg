@@ -208,12 +208,16 @@ def parse_amazon(html, base):
         if not n_el: continue
         name = n_el.get_text(strip=True)
         if not is_wanted(name): continue
-        unavail = it.select_one("[class*='a-color-price']")
-        if unavail and "indisponible" in unavail.get_text().lower(): continue
-        link_el = it.select_one("h2 a[href]")
-        url = (base + link_el["href"]) if link_el and link_el["href"].startswith("/") else (link_el["href"] if link_el else "")
         price_el = it.select_one(".a-price .a-offscreen,.a-price-whole")
-        price = price_el.get_text(strip=True) if price_el else ""
+        if not price_el: continue
+        price = price_el.get_text(strip=True)
+        full_text = it.get_text().lower()
+        if any(k in full_text for k in ["indisponible", "currently unavailable", "en rupture"]): continue
+        link_el = it.select_one("h2 a[href]")
+        if not link_el: continue
+        raw = link_el["href"]
+        asin_m = re.search(r"/dp/([A-Z0-9]{10})", raw)
+        url = f"https://www.amazon.fr/dp/{asin_m.group(1)}" if asin_m else ((base + raw) if raw.startswith("/") else raw)
         out.append({"name": name, "url": url, "price": price})
     return out
 
@@ -232,8 +236,12 @@ def parse_generic(html, base):
         name = n_el.get_text(strip=True)
         if not name or name in seen: continue
         if not is_wanted(name): continue
-        text = it.get_text().lower()
-        if any(k in text for k in ["rupture", "indisponible", "out of stock", "épuisé"]): continue
+        text = it.get_text()
+        text_low = text.lower()
+        if any(k in text_low for k in ["rupture", "indisponible", "out of stock", "currently unavailable"]): continue
+        if "Épuisé" in text or "épuisé" in text_low: continue
+        if it.select_one("[class*='out_of_stock'],[class*='out-of-stock'],[class*='unavailable'],[class*='rupture']"): continue
+        if it.select_one("button[disabled],button[class*='disabled'],[class*='out_of_stock'] button"): continue
         seen.add(name)
         out.append({"name": name, "url": _link(it, base), "price": _price(it)})
     return out

@@ -224,13 +224,23 @@ def parse_amazon(html, base):
         if not n_el: continue
         name = n_el.get_text(strip=True)
         if not is_wanted(name): continue
-        # Amazon : vérifier "Actuellement indisponible"
-        unavail = it.select_one("[class*='a-color-price']")
-        if unavail and "indisponible" in unavail.get_text().lower(): continue
-        link_el = it.select_one("h2 a[href]")
-        url = (base + link_el["href"]) if link_el and link_el["href"].startswith("/") else (link_el["href"] if link_el else "")
+        # Exclure si pas de prix (souvent = indisponible sur Amazon)
         price_el = it.select_one(".a-price .a-offscreen, .a-price-whole")
-        price = price_el.get_text(strip=True) if price_el else ""
+        if not price_el: continue
+        price = price_el.get_text(strip=True)
+        # Exclure "Actuellement indisponible"
+        full_text = it.get_text().lower()
+        if any(k in full_text for k in ["indisponible", "currently unavailable", "en rupture"]): continue
+        # Reconstruire l'URL proprement (enlever les paramètres de tracking sauf /dp/ASIN)
+        link_el = it.select_one("h2 a[href]")
+        if not link_el: continue
+        raw = link_el["href"]
+        # Extraire l'ASIN depuis l'URL Amazon (/dp/XXXXXXXXXX)
+        asin_m = re.search(r"/dp/([A-Z0-9]{10})", raw)
+        if asin_m:
+            url = f"https://www.amazon.fr/dp/{asin_m.group(1)}"
+        else:
+            url = (base + raw) if raw.startswith("/") else raw
         out.append({"name": name, "url": url, "price": price})
     return out
 
@@ -250,9 +260,26 @@ def parse_generic(html, base):
         name = n_el.get_text(strip=True)
         if not name or name in seen: continue
         if not is_wanted(name): continue
-        # Détecter rupture via textes courants
-        text = it.get_text().lower()
-        if any(k in text for k in ["rupture", "indisponible", "out of stock", "épuisé"]): continue
+
+        # Détecter rupture — texte ET classes HTML
+        text = it.get_text()
+        text_low = text.lower()
+        if any(k in text_low for k in ["rupture", "indisponible", "out of stock", "currently unavailable"]): continue
+        # Philibert / PrestaShop : "Épuisé" avec majuscule
+        if "Épuisé" in text or "épuisé" in text_low: continue
+        # Vérifier classe out_of_stock (PrestaShop standard)
+        if it.select_one("[class*='out_of_stock'],[class*='out-of-stock'],[class*='unavailable'],[class*='rupture']"): continue
+        # Philibert : si le bouton d'ajout est absent = pas commandable
+        has_cart_btn = it.select_one(
+            "button[class*='add'],a[class*='add_to_cart'],a[class*='ajax_add_to_cart'],"
+            "button[data-button-action='add-to-cart'],[class*='add-to-cart']:not([class*='disabled'])"
+        )
+        # Si on trouve explicitement un bouton disabled ou épuisé, on exclut
+        disabled_btn = it.select_one(
+            "button[disabled],button[class*='disabled'],[class*='out_of_stock'] button"
+        )
+        if disabled_btn: continue
+
         seen.add(name)
         out.append({"name": name, "url": _link(it, base), "price": _price(it)})
     return out
