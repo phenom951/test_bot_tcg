@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 # Installer Chromium si absent
-subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
+subprocess.run([sys.executable, "-m", "playwright", "install", "--with-deps", "chromium"], check=False)
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1486098578752536697/BpgUOLAmL2fM5HGyFhYFLEVY20F-TZBXA0B7zCyQbxDV_4A2gjwdlLEs2Is7X1Il0uuw"
