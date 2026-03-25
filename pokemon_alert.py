@@ -5,13 +5,12 @@ Pokémon TCG — Stock Alert Bot v1
 - Tous sets récents (EV, SV, Écarlate & Violet...)
 - Alertes prix + restockage + résumé 20h00
 """
-import asyncio, re, requests, subprocess, sys
+import asyncio, re, requests
 from datetime import datetime
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 # Installer Chromium si absent
-subprocess.run([sys.executable, "-m", "playwright", "install", "--with-deps", "chromium"], check=False)
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1486469899743133856/akZLWkcJbUPcyCF-evPLfzGV0nUv7Xr9Ln0Pb8p-0Fy2CDrYaix_K2Rk0RnYRxfkryJC"
@@ -45,7 +44,7 @@ EXCLUDE = [
 ]
 
 SITES = [
-    {"name": "Fnac",       "url": "https://www.fnac.com/Pokemon-Cartes-a-collectionner/n564770/w-4",                          "base": "https://www.fnac.com",         "parser": "fnac"},
+    {"name": "Fnac",       "url": "https://www.fnac.com/SearchResult/ResultList.aspx?Search=pokemon+display+booster+coffret&sft=1&sa=0",                          "base": "https://www.fnac.com",         "parser": "fnac"},
     {"name": "Cultura",    "url": "https://www.cultura.com/index/index-des-licences/pokemon/cartes-pokemon.html",             "base": "https://www.cultura.com",      "parser": "cultura"},
     {"name": "Carrefour",  "url": "https://www.carrefour.fr/s?q=pokemon+display+booster+coffret",                             "base": "https://www.carrefour.fr",     "parser": "carrefour"},
     {"name": "Amazon",     "url": "https://www.amazon.fr/s?k=pokemon+display+booster+coffret&rh=n%3A322086011",              "base": "https://www.amazon.fr",        "parser": "amazon"},

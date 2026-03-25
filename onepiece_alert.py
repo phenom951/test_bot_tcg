@@ -6,13 +6,12 @@ One Piece TCG — Stock Alert Bot v3
 - Résumé quotidien 20h00
 - Stock magasins Val d'Oise (Cultura)
 """
-import asyncio, re, requests, subprocess, sys
+import asyncio, re, requests
 from datetime import datetime, time as dtime
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 # Installer Chromium si absent
-subprocess.run([sys.executable, "-m", "playwright", "install", "--with-deps", "chromium"], check=False)
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1486098578752536697/BpgUOLAmL2fM5HGyFhYFLEVY20F-TZBXA0B7zCyQbxDV_4A2gjwdlLEs2Is7X1Il0uuw"
