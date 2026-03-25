@@ -330,6 +330,7 @@ async def main():
     print(f"  Résumé : {DAILY_RECAP_H}h00")
     print("=" * 60)
     heartbeat()
+    load_cultura_stores()
 
     cycle = 0
     while True:

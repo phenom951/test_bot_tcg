@@ -25,11 +25,10 @@ PRICE_LIMITS = {
     "booster":    8.0,   # booster à l'unité / blister
 }
 
-CULTURA_STORES = [
-    {"id": "0095", "name": "Cultura Franconville"},
-    {"id": "0064", "name": "Cultura Cergy"},
-    {"id": "0082", "name": "Cultura Montigny-lès-Cormeilles"},
-]
+CULTURA_POSTAL  = "95200"   # code postal centre de recherche
+CULTURA_MAX_KM  = 20        # rayon max en km
+CULTURA_GRAPHQL = "https://www.cultura.com/graphql"
+_cultura_stores_cache = []  # chargé au démarrage
 
 INCLUDE = [
     "display", "booster", "blister",
@@ -307,12 +306,26 @@ PARSERS = {
 }
 
 # ─── STOCK MAGASIN CULTURA ────────────────────────────────────────────────────
+def load_cultura_stores():
+    """IDs confirmés via GraphQL Cultura (95200, rayon 20km)."""
+    global _cultura_stores_cache
+    _cultura_stores_cache = [
+        {"id": "64",  "name": "Cultura Gennevilliers"},
+        {"id": "61",  "name": "Cultura Franconville"},
+        {"id": "184", "name": "Cultura La Défense"},
+        {"id": "358", "name": "Cultura L'Isle-Adam"},
+    ]
+    print(f"  Cultura : {len(_cultura_stores_cache)} magasins surveillés")
+    for s in _cultura_stores_cache:
+        print(f"    - {s['name']} (id={s['id']})")
+
+
 def cultura_pid(url):
     m = re.search(r"-(\d{7,})\.html", url)
     return m.group(1) if m else None
 
 def check_stores(pid, name, url):
-    for store in CULTURA_STORES:
+    for store in _cultura_stores_cache:
         try:
             r = requests.get(
                 f"https://www.cultura.com/api/stores/stock?productId={pid}&storeId={store['id']}",
@@ -400,11 +413,12 @@ async def main():
     print("=" * 60)
     print("  One Piece TCG Stock Alert — v3")
     print(f"  Sites    : {', '.join(s['name'] for s in SITES)}")
-    print(f"  Magasins : {', '.join(s['name'] for s in CULTURA_STORES)}")
+    print(f"  Magasins : {CULTURA_POSTAL} ({CULTURA_MAX_KM}km)")
     print(f"  Prix max : display {PRICE_LIMITS['display']}€ | premium {PRICE_LIMITS['premium']}€ | booster {PRICE_LIMITS['booster']}€")
     print(f"  Résumé quotidien : {DAILY_RECAP_H}h00")
     print("=" * 60)
     heartbeat()
+    load_cultura_stores()
 
     cycle = 0
     while True:
