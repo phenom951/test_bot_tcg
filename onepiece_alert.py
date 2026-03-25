@@ -52,7 +52,7 @@ SITES = [
     {"name": "Cultura",    "url": "https://www.cultura.com/index/index-des-licences/one-piece/cartes-one-piece.html",                           "base": "https://www.cultura.com",       "parser": "cultura"},
     {"name": "Carrefour",  "url": "https://www.carrefour.fr/s?q=one+piece+carte+booster+display",                                               "base": "https://www.carrefour.fr",      "parser": "carrefour"},
     {"name": "Amazon",     "url": "https://www.amazon.fr/s?k=one+piece+card+game+display+booster&rh=n%3A322086011",                             "base": "https://www.amazon.fr",         "parser": "amazon"},
-    {"name": "Philibert",  "url": "https://www.philibertnet.com/fr/recherche?search_query=one+piece+display+booster&submit_search=",            "base": "https://www.philibertnet.com",  "parser": "generic"},
+    {"name": "Philibert",  "url": "https://www.philibertnet.com/fr/recherche?search_query=one+piece+display+booster&submit_search=",            "base": "https://www.philibertnet.com",  "parser": "philibert"},
     {"name": "Otaku",      "url": "https://www.otaku.fr/catalogsearch/result/?q=one+piece+display+booster",                                     "base": "https://www.otaku.fr",          "parser": "generic"},
     {"name": "Magicbazar", "url": "https://www.magicbazar.fr/recherche/?q=one+piece+display",                                                   "base": "https://www.magicbazar.fr",     "parser": "generic"},
     {"name": "Agorajeux",  "url": "https://www.agorajeux.com/fr/recherche?controller=search&s=one+piece+booster+display",                       "base": "https://www.agorajeux.com",     "parser": "generic"},
@@ -244,8 +244,37 @@ def parse_amazon(html, base):
         out.append({"name": name, "url": url, "price": price})
     return out
 
+def parse_philibert(html, base):
+    """Parser dédié Philibert (PrestaShop).
+    Seuls les produits avec bouton 'Ajouter au panier' sont considérés en stock.
+    Les produits en rupture ont un bouton 'Prévenez-moi' et la classe 'out_of_stock'.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    items = soup.select("li.ajax_block_product, div.ajax_block_product, li[id*='product']")
+    if not items:
+        # Fallback si structure différente
+        items = soup.select("li[class*='product'], div[class*='product_item']")
+    out = []
+    seen = set()
+    for it in items:
+        n_el = it.select_one("h5, h3, .product-name, [class*='product_name'], [class*='product-name']")
+        if not n_el: continue
+        name = n_el.get_text(strip=True)
+        if not name or name in seen: continue
+        if not is_wanted(name): continue
+        # Exclure si classe out_of_stock présente sur le bloc produit
+        if it.select_one("[class*='out_of_stock']"): continue
+        # Exclure si le bouton est "Prévenez-moi" (= rupture Philibert)
+        btn = it.select_one("button, a[class*='button']")
+        if btn and any(k in btn.get_text().lower() for k in ["prévenez", "prevenez", "notify", "alerte"]): continue
+        # Exclure si "rupture" dans le HTML du bloc
+        if "rupture" in it.get_text().lower(): continue
+        seen.add(name)
+        out.append({"name": name, "url": _link(it, base), "price": _price(it)})
+    return out
+
 def parse_generic(html, base):
-    """Parser générique pour Philibert, Otaku, Magicbazar, Agorajeux."""
+    """Parser générique pour Otaku, Magicbazar, Agorajeux."""
     soup = BeautifulSoup(html, "html.parser")
     items = soup.select(
         "article, li[class*='product'], div[class*='product-item'], "
@@ -260,36 +289,22 @@ def parse_generic(html, base):
         name = n_el.get_text(strip=True)
         if not name or name in seen: continue
         if not is_wanted(name): continue
-
-        # Détecter rupture — texte ET classes HTML
         text = it.get_text()
         text_low = text.lower()
-        if any(k in text_low for k in ["rupture", "indisponible", "out of stock", "currently unavailable"]): continue
-        # Philibert / PrestaShop : "Épuisé" avec majuscule
-        if "Épuisé" in text or "épuisé" in text_low: continue
-        # Vérifier classe out_of_stock (PrestaShop standard)
+        if any(k in text_low for k in ["rupture", "indisponible", "out of stock", "currently unavailable", "épuisé", "epuise"]): continue
         if it.select_one("[class*='out_of_stock'],[class*='out-of-stock'],[class*='unavailable'],[class*='rupture']"): continue
-        # Philibert : si le bouton d'ajout est absent = pas commandable
-        has_cart_btn = it.select_one(
-            "button[class*='add'],a[class*='add_to_cart'],a[class*='ajax_add_to_cart'],"
-            "button[data-button-action='add-to-cart'],[class*='add-to-cart']:not([class*='disabled'])"
-        )
-        # Si on trouve explicitement un bouton disabled ou épuisé, on exclut
-        disabled_btn = it.select_one(
-            "button[disabled],button[class*='disabled'],[class*='out_of_stock'] button"
-        )
-        if disabled_btn: continue
-
+        if it.select_one("button[disabled],button[class*='disabled']"): continue
         seen.add(name)
         out.append({"name": name, "url": _link(it, base), "price": _price(it)})
     return out
 
 PARSERS = {
-    "fnac":      parse_fnac,
-    "cultura":   parse_cultura,
-    "carrefour": parse_carrefour,
-    "amazon":    parse_amazon,
-    "generic":   parse_generic,
+    "fnac":       parse_fnac,
+    "cultura":    parse_cultura,
+    "carrefour":  parse_carrefour,
+    "amazon":     parse_amazon,
+    "philibert":  parse_philibert,
+    "generic":    parse_generic,
 }
 
 # ─── STOCK MAGASIN CULTURA ────────────────────────────────────────────────────

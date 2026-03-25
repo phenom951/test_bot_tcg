@@ -49,7 +49,7 @@ SITES = [
     {"name": "Cultura",    "url": "https://www.cultura.com/index/index-des-licences/pokemon/cartes-pokemon.html",             "base": "https://www.cultura.com",      "parser": "cultura"},
     {"name": "Carrefour",  "url": "https://www.carrefour.fr/s?q=pokemon+display+booster+coffret",                             "base": "https://www.carrefour.fr",     "parser": "carrefour"},
     {"name": "Amazon",     "url": "https://www.amazon.fr/s?k=pokemon+display+booster+coffret&rh=n%3A322086011",              "base": "https://www.amazon.fr",        "parser": "amazon"},
-    {"name": "Philibert",  "url": "https://www.philibertnet.com/fr/recherche?search_query=pokemon+display+booster",          "base": "https://www.philibertnet.com", "parser": "generic"},
+    {"name": "Philibert",  "url": "https://www.philibertnet.com/fr/recherche?search_query=pokemon+display+booster",          "base": "https://www.philibertnet.com", "parser": "philibert"},
     {"name": "Otaku",      "url": "https://www.otaku.fr/catalogsearch/result/?q=pokemon+display+booster",                    "base": "https://www.otaku.fr",         "parser": "generic"},
     {"name": "Magicbazar", "url": "https://www.magicbazar.fr/recherche/?q=pokemon+display",                                  "base": "https://www.magicbazar.fr",    "parser": "generic"},
     {"name": "Agorajeux",  "url": "https://www.agorajeux.com/fr/recherche?controller=search&s=pokemon+booster+display",      "base": "https://www.agorajeux.com",    "parser": "generic"},
@@ -221,6 +221,27 @@ def parse_amazon(html, base):
         out.append({"name": name, "url": url, "price": price})
     return out
 
+def parse_philibert(html, base):
+    soup = BeautifulSoup(html, "html.parser")
+    items = soup.select("li.ajax_block_product, div.ajax_block_product, li[id*='product']")
+    if not items:
+        items = soup.select("li[class*='product'], div[class*='product_item']")
+    out = []
+    seen = set()
+    for it in items:
+        n_el = it.select_one("h5, h3, .product-name, [class*='product_name'], [class*='product-name']")
+        if not n_el: continue
+        name = n_el.get_text(strip=True)
+        if not name or name in seen: continue
+        if not is_wanted(name): continue
+        if it.select_one("[class*='out_of_stock']"): continue
+        btn = it.select_one("button, a[class*='button']")
+        if btn and any(k in btn.get_text().lower() for k in ["prévenez", "prevenez", "notify", "alerte"]): continue
+        if "rupture" in it.get_text().lower(): continue
+        seen.add(name)
+        out.append({"name": name, "url": _link(it, base), "price": _price(it)})
+    return out
+
 def parse_generic(html, base):
     soup = BeautifulSoup(html, "html.parser")
     items = soup.select(
@@ -238,17 +259,16 @@ def parse_generic(html, base):
         if not is_wanted(name): continue
         text = it.get_text()
         text_low = text.lower()
-        if any(k in text_low for k in ["rupture", "indisponible", "out of stock", "currently unavailable"]): continue
-        if "Épuisé" in text or "épuisé" in text_low: continue
+        if any(k in text_low for k in ["rupture", "indisponible", "out of stock", "currently unavailable", "épuisé", "epuise"]): continue
         if it.select_one("[class*='out_of_stock'],[class*='out-of-stock'],[class*='unavailable'],[class*='rupture']"): continue
-        if it.select_one("button[disabled],button[class*='disabled'],[class*='out_of_stock'] button"): continue
+        if it.select_one("button[disabled],button[class*='disabled']"): continue
         seen.add(name)
         out.append({"name": name, "url": _link(it, base), "price": _price(it)})
     return out
 
 PARSERS = {
     "fnac": parse_fnac, "cultura": parse_cultura, "carrefour": parse_carrefour,
-    "amazon": parse_amazon, "generic": parse_generic,
+    "amazon": parse_amazon, "philibert": parse_philibert, "generic": parse_generic,
 }
 
 # ─── SCAN ─────────────────────────────────────────────────────────────────────
