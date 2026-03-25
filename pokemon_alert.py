@@ -5,10 +5,13 @@ Pokémon TCG — Stock Alert Bot v1
 - Tous sets récents (EV, SV, Écarlate & Violet...)
 - Alertes prix + restockage + résumé 20h00
 """
-import asyncio, re, requests
+import asyncio, re, requests, subprocess, sys
 from datetime import datetime
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+
+# Installer Chromium si absent
+subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1486469899743133856/akZLWkcJbUPcyCF-evPLfzGV0nUv7Xr9Ln0Pb8p-0Fy2CDrYaix_K2Rk0RnYRxfkryJC"
